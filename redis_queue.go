@@ -118,6 +118,12 @@ func (this *RedisQueue) Remove(data interface{}) error {
 	return this.client.LRem(this.privateKey, -1, data).Err()
 }
 
+// Size of queue.
+func (this *RedisQueue) Size() int64 {
+	// pop up the first element of the list.
+	return this.client.LLen(this.key).Val()
+}
+
 // New redis queue with key name,
 // use linux timestamp for distinguish distributed read and write by privateKey.
 func NewRedisQueue(key string) *RedisQueue {
