@@ -14,7 +14,7 @@ type Queuer interface {
 	Pop(ctx context.Context) (data interface{}, err error)
 	// Remove data from queue.
 	Remove(data interface{}) error
-	// Size of queue.
+	// Size of queuer.
 	Size() int64
 }
 

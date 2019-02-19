@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strconv"
@@ -118,10 +119,32 @@ func (this *RedisQueue) Remove(data interface{}) error {
 	return this.client.LRem(this.privateKey, -1, data).Err()
 }
 
-// Size of queue.
+// Size of queuer.
 func (this *RedisQueue) Size() int64 {
 	// pop up the first element of the list.
 	return this.client.LLen(this.key).Val()
+}
+
+// Marshal queue as JSON.
+func (this *RedisQueue) MarshalJSON() ([]byte, error) {
+
+	// range of list.
+	results, err := this.client.LRange(this.key, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	// convert []string to []byte as json format.
+	buffer := bytes.Buffer{}
+
+	buffer.WriteByte('[')
+	for _, result := range results {
+		buffer.WriteString(result)
+		buffer.WriteByte(',')
+	}
+	buffer.WriteByte(']')
+
+	return buffer.Bytes(), nil
 }
 
 // New redis queue with key name,
