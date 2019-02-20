@@ -18,7 +18,7 @@ const (
 // use redis list store queue data, redis BRPopLPush for safe pop data, when failed
 // use ReturnElements function return back private key element to key. it can use for
 // distributed queue.
-type RedisQueue struct {
+type RedisListQueue struct {
 	// queue private key, format is [KEY][TimestampSeparator][timestamp] then match string is [KEY*][TimestampSeparator][timestamp].
 	privateKey string
 	// redis key.
@@ -29,7 +29,7 @@ type RedisQueue struct {
 
 // Return the private key to the queue key greater than interval second.
 // first get all elements back , after get self private elements back.
-func (this *RedisQueue) ReturnElements(interval int64) error {
+func (this *RedisListQueue) ReturnElements(interval int64) error {
 	for {
 		// scan the keys match queue key.
 		match := this.key + TimestampSeparator + "*"
@@ -75,15 +75,10 @@ func (this *RedisQueue) ReturnElements(interval int64) error {
 
 // Init queue with context, use redis NewContext function to set redis config.
 // will call ReturnElements at least.
-func (this *RedisQueue) Init(ctx context.Context) error {
-	if this.client == nil {
-		// use redis default config.
-		config := redis.DefaultRedisConfig
+func (this *RedisListQueue) Init(ctx context.Context) error {
 
-		if value, ok := redis.FromContext(ctx); ok {
-			config = value
-		}
-
+	// context contain redis config.
+	if config, ok := redis.FromContext(ctx); ok {
 		this.client = config.NewGoClient()
 	}
 
@@ -91,7 +86,7 @@ func (this *RedisQueue) Init(ctx context.Context) error {
 }
 
 // Push any data into the queue.
-func (this *RedisQueue) Push(data interface{}) error {
+func (this *RedisListQueue) Push(data interface{}) error {
 	// inserting data at the end of the redis list.
 	return this.client.LPush(this.key, data).Err()
 }
@@ -99,7 +94,7 @@ func (this *RedisQueue) Push(data interface{}) error {
 // Pop first element with timeout, pop from queue key into the queue private key,
 // when finish handle the Pop element please call the Remove function to remove.
 // default duration is 1 second, context can carry Duration context and DoFunction context.
-func (this *RedisQueue) Pop(ctx context.Context) (interface{}, error) {
+func (this *RedisListQueue) Pop(ctx context.Context) (interface{}, error) {
 	// get duration from context.
 	duration, ok := DurationFromContext(ctx)
 	if !ok {
@@ -110,23 +105,27 @@ func (this *RedisQueue) Pop(ctx context.Context) (interface{}, error) {
 		f()
 	}
 	// pop up the first element of the list with duration block.
-	return this.client.BRPopLPush(this.key, this.privateKey, duration).Result()
+	raw, err := this.client.BRPopLPush(this.key, this.privateKey, duration).Result()
+	if err == redis.GoRedisNil {
+		return nil, QueueNilErr
+	}
+	return raw, err
 }
 
 // Remove the last element of private key.
-func (this *RedisQueue) Remove(data interface{}) error {
+func (this *RedisListQueue) Remove(data interface{}) error {
 	// pop up the first element of the list.
 	return this.client.LRem(this.privateKey, -1, data).Err()
 }
 
 // Size of queuer.
-func (this *RedisQueue) Size() int64 {
+func (this *RedisListQueue) Size() int64 {
 	// pop up the first element of the list.
 	return this.client.LLen(this.key).Val()
 }
 
-// Marshal queue as JSON.
-func (this *RedisQueue) MarshalJSON() ([]byte, error) {
+// Implement Marshaler.
+func (this *RedisListQueue) MarshalJSON() ([]byte, error) {
 
 	// range of list.
 	results, err := this.client.LRange(this.key, 0, -1).Result()
@@ -147,14 +146,20 @@ func (this *RedisQueue) MarshalJSON() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// New redis queue with key name,
+// New redis list queue with key name and redis config,
 // use linux timestamp for distinguish distributed read and write by privateKey.
-func NewRedisQueue(key string) *RedisQueue {
-	q := &RedisQueue{
+func NewRedisListQueue(key string, config *redis.Config) *RedisListQueue {
+	q := &RedisListQueue{
 		// format is [KEY][TimestampSeparator][timestamp].
 		privateKey: fmt.Sprintf("%s%s%d", key, TimestampSeparator, time.Now().Unix()),
 		key:        key,
+		client:     config.NewGoClient(),
 	}
+
+	// register for update.
+	config.UpdateFuncRegister(func(c *redis.Config) {
+		q.client = c.NewGoClient()
+	})
 
 	return q
 }

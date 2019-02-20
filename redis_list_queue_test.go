@@ -26,9 +26,9 @@ func TestRedisQueue_Push(t *testing.T) {
 	config := redis.DefaultRedisConfig
 	config.Addr = s.Addr()
 
-	queue := NewRedisQueue(key)
+	queue := NewRedisQueue(key, config)
 
-	if err := queue.Init(redis.NewContext(context.TODO(), config)); err != nil {
+	if err := queue.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -62,9 +62,9 @@ func TestRedisQueue_Pop(t *testing.T) {
 	config := redis.DefaultRedisConfig
 	config.Addr = s.Addr()
 
-	queue := NewRedisQueue(key)
+	queue := NewRedisQueue(key, config)
 
-	if err := queue.Init(redis.NewContext(context.TODO(), config)); err != nil {
+	if err := queue.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -114,9 +114,9 @@ func TestRedisQueue_ReturnElements(t *testing.T) {
 	config := redis.DefaultRedisConfig
 	config.Addr = s.Addr()
 
-	queue := NewRedisQueue(key)
+	queue := NewRedisQueue(key, config)
 
-	if err := queue.Init(redis.NewContext(context.TODO(), config)); err != nil {
+	if err := queue.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -176,9 +176,9 @@ func TestRedisQueue_Remove(t *testing.T) {
 	config := redis.DefaultRedisConfig
 	config.Addr = s.Addr()
 
-	queue := NewRedisQueue(key)
+	queue := NewRedisQueue(key, config)
 
-	if err := queue.Init(redis.NewContext(context.TODO(), config)); err != nil {
+	if err := queue.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 

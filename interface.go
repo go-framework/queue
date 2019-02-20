@@ -2,6 +2,11 @@ package queue
 
 import (
 	"context"
+	"errors"
+)
+
+var (
+	QueueNilErr = errors.New("queue nil")
 )
 
 // Queue interface.
